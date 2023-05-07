@@ -1,0 +1,57 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use utf8;
+utf8::is_utf8($_) || utf8::decode($_) for @ARGV;
+
+use FindBin qw($Bin);
+use lib $Bin;
+use ui_zenity_common;
+
+ui_zenity_sub {
+    require HWTAG;
+
+    my (@etags) = @ARGV;
+    die "Not enough arguments" unless @etags;
+
+    my $hwtag = new HWTAG;
+    my $basemeta = $hwtag->get_basemeta_from_etag($etags[0]);
+    my $category_config = $hwtag->category_get_config($basemeta->{category});
+    my $default_title = $hwtag->entity_get_title($basemeta);
+    my $default_title_escaped = escapeHTML($default_title);
+    my $title_for_zenity = @etags > 1?
+        "Select tag for multiple files\n":
+        "Select tag for \"$default_title_escaped\"";
+
+    my $tagdir = ui_zenity_run(
+        undef,
+        '--file-selection',
+        '--title', $title_for_zenity,
+        '--filename', $category_config->{export}.'/',
+        '--directory');
+    exit 1 unless defined $tagdir;
+    chomp($tagdir);
+    $tagdir =~ s:^\Q$category_config->{export}\E/::g;
+    die "Tag directory out of library" if $tagdir =~ m:^/:;
+    my @taglink = split /\//, $tagdir;
+
+    if (@etags > 1) {
+        # multiple files
+        for my $etag (@etags) {
+            my $basemeta = $hwtag->get_basemeta_from_etag($etag);
+            $hwtag->tag_add($basemeta, [undef, [@taglink]]);
+        }
+    } else {
+        # single file
+        my $title = ui_zenity_run(
+            undef,
+            '--entry',
+            '--title', "Set Title",
+            '--text', 'Title',
+            '--entry-text', $default_title);
+        exit 1 unless defined $title;
+        chomp($title);
+        die "Title should not be empty" unless $title;
+        $hwtag->tag_add($basemeta, [$title, [@taglink]]);
+    }
+};

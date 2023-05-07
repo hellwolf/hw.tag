@@ -1,0 +1,15 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use utf8;
+utf8::is_utf8($_) || utf8::decode($_) for @ARGV;
+
+use FindBin qw($Bin);
+use lib $Bin;
+use ui_zenity_common;
+
+ui_zenity_sub {
+    require HWTAG;
+
+    die 'entity-pack-up';
+};

@@ -1,0 +1,49 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use utf8;
+utf8::is_utf8($_) || utf8::decode($_) for @ARGV;
+
+use FindBin qw($Bin);
+use lib $Bin;
+use ui_zenity_common;
+
+use File::Spec::Functions qw(catdir);
+
+ui_zenity_sub {
+    require HWTAG;
+
+    my (@etags) = @ARGV;
+    die "Not enough arguments" unless @etags;
+
+    my $hwtag = new HWTAG;
+    for my $etag (@etags) {
+        my $basemeta = $hwtag->get_basemeta_from_etag($etag);
+        my @tags = $hwtag->tag_list($basemeta);
+        my $title = $hwtag->entity_get_title($basemeta);
+        my $zinput = '';
+        for my $i (0..$#tags){
+            my $tag = $tags[$i];
+            $zinput .= join("\n",
+                            $i,
+                            escapeHTML($tag->[0] || $title),
+                            escapeHTML(join('/', @{$tag->[1]})));
+            $zinput .= "\n";
+        }
+        my $n = ui_zenity_run(
+            $zinput,
+            '--list',
+            '--title' => "Tag List for $title",
+            '--width' => '600',
+            '--height' => '240',
+            '--column' => 'Number',
+            '--column' => 'Title',
+            '--column' =>'Tag',
+            '--print-column' => '1');
+        if (defined $n) {
+            chomp($n);
+            my $exportdir = $hwtag->category_get_config($basemeta->{category})->{export};
+            system 'nautilus', catdir($exportdir, @{$tags[$n]->[1]});
+        }
+    }
+};

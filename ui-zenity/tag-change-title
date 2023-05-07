@@ -1,0 +1,35 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use utf8;
+utf8::is_utf8($_) || utf8::decode($_) for @ARGV;
+
+use FindBin qw($Bin);
+use lib $Bin;
+use ui_zenity_common;
+
+ui_zenity_sub {
+    require HWTAG;
+
+    my (@etags) = @ARGV;
+    die "Not enough arguments" unless @etags;
+
+    my $hwtag = new HWTAG;
+    for my $etag (@etags) {
+        my $basemeta = $hwtag->get_basemeta_from_etag($etag);
+        my $tag = $hwtag->get_tag_from_etag($basemeta, $etag);
+        my $enttitle = $hwtag->entity_get_title($basemeta);
+
+        my $newtitle = ui_zenity_run(
+            undef,
+            '--entry',
+            '--title' => 'Input',
+            '--width' => '480',
+            '--text' => 'New title of entity tag',
+            '--entry-text' => $enttitle);
+        exit 1 unless defined $newtitle;
+        chomp($newtitle);
+        die "Title should not be empty" unless $newtitle;
+        $hwtag->tag_set_tagtitle_by_etag($basemeta, $etag, $newtitle);
+    }
+}

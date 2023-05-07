@@ -1,0 +1,10 @@
+CAMERA_NAME=nikon_coolpix_l3
+CATEGORY=mygallery
+function camera_file_list() {
+	find "$MEDIA_DIR"/dcim -type f
+}
+function camera_subcat() {
+	t=${1%%.*}
+	t=${t%%??}
+	echo $t
+}

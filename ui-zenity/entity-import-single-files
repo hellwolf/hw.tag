@@ -1,0 +1,34 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use utf8;
+utf8::is_utf8($_) || utf8::decode($_) for @ARGV;
+
+use FindBin qw($Bin);
+use lib $Bin;
+use ui_zenity_common;
+
+ui_zenity_sub {
+    require HWTAG;
+    use File::Basename qw(basename);
+
+    # get arguments
+    my (@files) = @ARGV;
+    die "Not enough arguments" unless @files;
+
+    my $hwtag = new HWTAG;
+
+    # choose category
+    my $category = ui_zenity_run(undef,
+                                 '--list',
+                                 '--title', 'Choose category',
+                                 '--column', 'Category',
+                                 $hwtag->category_list());
+    exit 1 unless defined $category;
+    die "Category not chose" unless $category;
+    chomp($category);
+
+    for my $file (@files) {
+        $hwtag->entity_import($category, basename($file), $file);
+    }
+}

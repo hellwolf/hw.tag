@@ -1,0 +1,72 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use utf8;
+utf8::is_utf8($_) || utf8::decode($_) for @ARGV;
+
+use FindBin qw($Bin);
+use lib $Bin;
+use ui_zenity_common;
+
+use File::Basename;
+
+ui_zenity_sub {
+    require HWTAG;
+
+    # get arguments
+    my (@files) = @ARGV;
+    die "Not enough arguments" unless @files;
+
+    my $hwtag = new HWTAG;
+
+    # choose category
+    my $category = ui_zenity_run(undef,
+                                 '--list',
+                                 '--title', 'Choose category',
+                                 '--column', 'Category',
+                                 $hwtag->category_list());
+    exit 1 unless defined $category;
+    die "Category not chose" unless $category;
+    chomp($category);
+
+    # choose entry file
+    my ($zenity_out, $zenity_in);
+    my $title = '';
+    $title = basename $files[0] if @files == 1;
+    $title = ui_zenity_run(
+        undef,
+        '--entry',
+        '--title' => 'Input',
+        '--width' => '480',
+        '--text' => 'Default title of entity',
+        '--entry-text' => $title);
+    exit 1 unless defined $title;
+    die "Title should not be empty" unless $title;
+    chomp($title);
+
+    # add _files directory for html file
+    for my $html_file ( grep /\.html$/, @files ) {
+        my $html_folder = $html_file;
+        $html_folder =~ s/\.html$/_files/;
+        if (-d $html_folder) {
+            push @files, $html_folder
+                unless grep {$_ eq $html_folder} @files;
+        }
+    }
+
+    # import
+    my $q = ui_zenity_run(
+        undef,
+        '--question',
+        '--text',
+        join("\n",
+             "<b>Title: </b>".escapeHTML("$title"),
+             "<b>Import files to $category:",
+             "</b>".escapeHTML(join("\n", @files)),
+             "<b>Ok?</b>"));
+    if (defined $q) {
+        $hwtag->entity_import($category, $title, @files);
+    }
+
+    # set tags <TODO>
+};

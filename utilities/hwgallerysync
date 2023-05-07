@@ -1,0 +1,50 @@
+#!/bin/bash
+
+[ $# != 1 ] && echo Usage: $0 GALLERY_DIR >&2 && exit 1
+MEDIA_DIR=$1
+. "$MEDIA_DIR"/hwgallerysync.conf || exit 1
+[ -z $CAMERA_NAME ] && echo CAMERA_NAME not defined && exit 1
+
+HWTAG_TOPDIR=$(dirname "$(readlink -f "$0")")/..
+export PERLLIB=$PERLLIB:${HWTAG_TOPDIR}
+
+COMMON_HEAD="
+use strict;
+use warnings;
+use utf8;
+utf8::is_utf8(\$_) || utf8::decode(\$_) for @ARGV;
+
+use HWTAG;
+my \$hwtag = new HWTAG(undef, {no_delete => 1});
+"
+
+function hwtageval() {
+    perl <<CODE
+$COMMON_HEAD
+$@
+CODE
+    [ $? != 0 ] && exit 1
+}
+
+EXPORT_DIR=$(hwtageval "
+my \$cfg = \$hwtag->category_get_config(\"$CATEGORY\");
+print \$cfg->{export};
+")
+
+function import() {
+    hwtageval "
+my \$bm = \$hwtag->entity_import(\"$CATEGORY\", \"$1\", \"$2\");
+\$hwtag->tag_add(\$bm, [\"\", [\"source\", \"$CAMERA_NAME\", \"$3\"]]);
+"
+}
+  
+camera_file_list | while read file; do
+    basefile=$(basename "$file")
+    subcat=$(camera_subcat "$basefile")
+    destfile=$EXPORT_DIR/source/$CAMERA_NAME/$subcat/$basefile
+    if [ ! -f $destfile ];then
+        mkdir -p $EXPORT_DIR/source/$CAMERA_NAME/$subcat
+        echo NEW: $basefile $destfile
+        import $basefile $file $subcat
+    fi
+done
